@@ -540,7 +540,9 @@ loadStats().catch((e) => {
     else document.documentElement.removeAttribute("data-theme");
     if (btn) btn.textContent = t === "cyberpunk" ? "default" : "cyberpunk";
   };
-  apply(localStorage.getItem(KEY) || "default");
+  // URL ?theme=cyberpunk 优先于 localStorage（方便截图等场景）
+  const urlTheme = new URLSearchParams(window.location.search).get("theme");
+  apply(urlTheme || localStorage.getItem(KEY) || "default");
   btn?.addEventListener("click", () => {
     const next = document.documentElement.getAttribute("data-theme") === "cyberpunk" ? "default" : "cyberpunk";
     localStorage.setItem(KEY, next);

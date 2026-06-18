@@ -45,7 +45,8 @@
   "pi": {
     "extensions": [
       "./extensions/tokamak/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/DoubleDD/pi-tokamak/main/docs/screenshot-cyberpunk.png"
   },
   "author": "kedong",
   "license": "MIT"
