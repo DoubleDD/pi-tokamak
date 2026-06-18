@@ -1,0 +1,35 @@
+{
+  "name": "pi-token-stats",
+  "version": "0.1.0",
+  "description": "Visualize your pi coding agent token consumption with a GitHub-style heatmap.",
+  "type": "module",
+  "bin": {
+    "pi-tokens": "./bin/pi-tokens.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "public",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node bin/pi-tokens.mjs",
+    "test": "node --test 'test/**/*.test.mjs'"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "open": "^10.1.0"
+  },
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "token-usage",
+    "heatmap",
+    "stats",
+    "dashboard"
+  ],
+  "author": "kedong",
+  "license": "MIT"
+}

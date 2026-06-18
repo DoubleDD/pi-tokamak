@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>pi-tokens · token usage dashboard</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>🥧 pi-tokens</h1>
+      <p class="subtitle">your pi coding agent token consumption</p>
+    </header>
+
+    <main>
+      <section id="summary" class="cards" aria-label="overall summary">
+        <div class="card"><div class="metric" id="m-total-cost">—</div><div class="label">total cost</div></div>
+        <div class="card"><div class="metric" id="m-total-tokens">—</div><div class="label">total tokens (incl. cache)</div></div>
+        <div class="card"><div class="metric" id="m-input">—</div><div class="label">input tokens</div></div>
+        <div class="card"><div class="metric" id="m-output">—</div><div class="label">output tokens</div></div>
+        <div class="card"><div class="metric" id="m-sessions">—</div><div class="label">sessions</div></div>
+        <div class="card"><div class="metric" id="m-messages">—</div><div class="label">messages</div></div>
+      </section>
+
+      <section aria-labelledby="heatmap-title">
+        <div class="section-head">
+          <h2 id="heatmap-title">daily activity</h2>
+          <div class="controls">
+            <label for="metric-select">metric:</label>
+            <select id="metric-select">
+              <option value="totalTokens">total tokens</option>
+              <option value="cost">cost</option>
+              <option value="input">input</option>
+              <option value="output">output</option>
+              <option value="messages">messages</option>
+            </select>
+          </div>
+        </div>
+        <div id="heatmap" class="heatmap-wrap"></div>
+        <div class="legend" id="legend"></div>
+      </section>
+
+      <section aria-labelledby="usage-title">
+        <h2 id="usage-title">by provider &middot; model</h2>
+        <table id="t-usage"></table>
+      </section>
+
+      <section aria-labelledby="daily-title">
+        <h2 id="daily-title">by month &middot; day</h2>
+        <table id="t-daily"></table>
+      </section>
+
+      <section aria-labelledby="project-title">
+        <h2 id="project-title">by project</h2>
+        <table id="t-project"></table>
+      </section>
+    </main>
+
+    <footer>
+      <span id="meta">—</span>
+      <button id="refresh">refresh</button>
+    </footer>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
