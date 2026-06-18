@@ -49,6 +49,7 @@ pi install npm:pi-tokamak
 | `tokamak_stop` | Tool | Kill the tokamak server and free the port |
 | `/tokamak` | Command | Slash command to open the dashboard |
 | `/tokamak-stop` | Command | Slash command to stop the server |
+| `/tokamak-stats` | Command | Slash command to query stats inline |
 
 Once installed, just say things like:
 

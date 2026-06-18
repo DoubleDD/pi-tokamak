@@ -246,7 +246,24 @@ export default function tokamakExtension(pi: ExtensionAPI): void {
       }
     },
   });
+  // Slash command: /tokamak-stats — 在 pi 内快速查询统计
+  pi.registerCommand("tokamak-stats", {
+    description: "快速查看 token 消耗摘要（不打开浏览器）",
+    handler: async (_args, ctx) => {
+      try {
+        const port = await ensureServer();
+        const stats = await fetchStats(port);
+        ctx.ui.notify(formatSummary(stats), "info");
+      } catch (err) {
+        ctx.ui.notify(
+          `查询失败: ${err instanceof Error ? err.message : String(err)}`,
+          "error",
+        );
+      }
+    },
+  });
 
+  // Tool: tokamak_stop — Agent 可调用的关停工具
   // Tool: tokamak_stop — Agent 可调用的关停工具
   pi.registerTool({
     name: "tokamak_stop",
