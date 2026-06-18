@@ -23,7 +23,8 @@
   ],
   "scripts": {
     "start": "node bin/tokamak.mjs",
-    "test": "node --test 'test/**/*.test.mjs'"
+    "test": "node --test 'test/**/*.test.mjs'",
+    "release": "./scripts/release.sh"
   },
   "engines": {
     "node": ">=18"
