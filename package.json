@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Fusion-grade token heatmaps for your pi coding agent — cyberpunk aesthetics included.",
   "type": "module",
+  "homepage": "https://github.com/DoubleDD/pi-tokamak",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DoubleDD/pi-tokamak.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DoubleDD/pi-tokamak/issues"
+  },
   "bin": {
     "tokamak": "./bin/tokamak.mjs"
   },
