@@ -7,7 +7,7 @@ import os from "node:os";
 import { loadAllRecords, buildStats } from "../src/aggregator.mjs";
 
 async function setupFixture() {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-tokens-test-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "tokamak-test-"));
   const projDir = path.join(root, "--my-project--");
   await fs.mkdir(projDir, { recursive: true });
 

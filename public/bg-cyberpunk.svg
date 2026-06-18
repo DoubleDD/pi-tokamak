@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <defs>
+    <radialGradient id="node" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(5,217,232,0.55)"/>
+      <stop offset="100%" stop-color="rgba(5,217,232,0)"/>
+    </radialGradient>
+    <radialGradient id="nodeP" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(255,42,109,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,42,109,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- micro grid: every 30px, faint cyan -->
+  <g fill="none" stroke="rgba(5,217,232,0.05)" stroke-width="1">
+    <path d="M 30 0 V 240 M 60 0 V 240 M 90 0 V 240 M 120 0 V 240 M 150 0 V 240 M 180 0 V 240 M 210 0 V 240"/>
+    <path d="M 0 30 H 240 M 0 60 H 240 M 0 90 H 240 M 0 120 H 240 M 0 150 H 240 M 0 180 H 240 M 0 210 H 240"/>
+  </g>
+  <!-- macro grid (tile boundary): neon pink -->
+  <path d="M 240 0 L 0 0 0 240" fill="none" stroke="rgba(255,42,109,0.16)" stroke-width="1"/>
+  <!-- diagonal perspective hints -->
+  <path d="M 0 0 L 240 240 M 240 0 L 0 240" fill="none" stroke="rgba(5,217,232,0.035)" stroke-width="1"/>
+  <!-- glowing grid nodes -->
+  <circle cx="60" cy="180" r="9" fill="url(#node)"/>
+  <circle cx="180" cy="60" r="9" fill="url(#nodeP)"/>
+  <g fill="rgba(5,217,232,0.45)">
+    <circle cx="60" cy="180" r="1.3"/>
+    <circle cx="120" cy="120" r="1.3"/>
+    <circle cx="0" cy="0" r="1.3"/>
+  </g>
+  <circle cx="180" cy="60" r="1.3" fill="rgba(255,42,109,0.5)"/>
+  <!-- corner tick marks -->
+  <g fill="none" stroke="rgba(255,42,109,0.3)" stroke-width="1">
+    <path d="M 0 12 V 0 H 12 M 240 228 V 240 H 228"/>
+  </g>
+  <!-- center reticle: neon cyan -->
+  <g fill="none" stroke="rgba(5,217,232,0.32)" stroke-width="1">
+    <circle cx="120" cy="120" r="2"/>
+    <path d="M 120 112 V 117 M 120 123 V 128 M 112 120 H 117 M 123 120 H 128"/>
+  </g>
+</svg>

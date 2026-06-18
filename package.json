@@ -1,19 +1,20 @@
 {
-  "name": "pi-token-stats",
+  "name": "pi-tokamak",
   "version": "0.1.0",
-  "description": "Visualize your pi coding agent token consumption with a GitHub-style heatmap.",
+  "description": "Fusion-grade token heatmaps for your pi coding agent — cyberpunk aesthetics included.",
   "type": "module",
   "bin": {
-    "pi-tokens": "./bin/pi-tokens.mjs"
+    "tokamak": "./bin/tokamak.mjs"
   },
   "files": [
+    "extensions",
     "bin",
     "src",
     "public",
     "README.md"
   ],
   "scripts": {
-    "start": "node bin/pi-tokens.mjs",
+    "start": "node bin/tokamak.mjs",
     "test": "node --test 'test/**/*.test.mjs'"
   },
   "engines": {
@@ -25,11 +26,19 @@
   "keywords": [
     "pi",
     "pi-coding-agent",
+    "pi-package",
     "token-usage",
     "heatmap",
     "stats",
-    "dashboard"
+    "dashboard",
+    "cyberpunk",
+    "tokamak"
   ],
+  "pi": {
+    "extensions": [
+      "./extensions/tokamak/index.ts"
+    ]
+  },
   "author": "kedong",
   "license": "MIT"
 }

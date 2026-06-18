@@ -1,6 +1,6 @@
-# pi-token-stats
+# pi-tokamak
 
-Visualize your **pi coding agent** token consumption with a GitHub-style heatmap.
+Fusion-grade token heatmaps for your pi coding agent — cyberpunk aesthetics included.
 
 ![](docs/screenshot.png)
 
@@ -18,13 +18,13 @@ All data stays on your machine — no telemetry, no cloud.
 ## Install
 
 ```bash
-npm install -g pi-token-stats
+npm install -g pi-tokamak
 ```
 
 ## Usage
 
 ```bash
-pi-tokens
+tokamak
 ```
 
 Opens a dashboard in your browser at `http://127.0.0.1:<random-port>`.
@@ -32,7 +32,7 @@ Opens a dashboard in your browser at `http://127.0.0.1:<random-port>`.
 ### Options
 
 ```
-pi-tokens [options]
+tokamak [options]
 
   -p, --port <n>         server port (default: random)
   --no-open              don't open browser

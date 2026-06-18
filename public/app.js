@@ -1,4 +1,4 @@
-// pi-tokens dashboard frontend
+// tokamak dashboard
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const fmtInt = (n) => Number(n || 0).toLocaleString("en-US");
@@ -39,22 +39,26 @@ async function loadStats() {
 }
 
 function render() {
-  renderSummary();
-  renderHeatmap();
-  renderUsageTable();
-  renderDailyTable();
-  renderTable("t-project", STATS.byProject, [
-    { key: "name", label: "project" },
-    { key: "messages", label: "msgs", num: true, fmt: fmtInt },
-    { key: "input", label: "input", num: true, fmt: fmtInt },
-    { key: "output", label: "output", num: true, fmt: fmtInt },
-    { key: "cacheRead", label: "cache read", num: true, fmt: fmtInt },
-    { key: "cost", label: "cost", num: true, fmt: fmtCost },
-  ]);
-
+  // 1) 先画轻量 + 把 meta 状态写回，让用户立刻看到"数据已到达"
   const meta = document.getElementById("meta");
   const s = STATS.summary;
   meta.textContent = `${s.firstDate || "—"} → ${s.lastDate || "—"} · last refreshed ${new Date().toLocaleTimeString()}`;
+  renderSummary();
+  // 2) 把热力图 + 三个表格这些重活推到下一帧，让浏览器先 paint 上面的内容,
+  //    避免长同步任务把 footer 文本变更与重活打包成一帧延迟显示。
+  requestAnimationFrame(() => {
+    renderHeatmap();
+    renderUsageTable();
+    renderDailyTable();
+    renderTable("t-project", STATS.byProject, [
+      { key: "name", label: "project" },
+      { key: "messages", label: "msgs", num: true, fmt: fmtInt },
+      { key: "input", label: "input", num: true, fmt: fmtInt },
+      { key: "output", label: "output", num: true, fmt: fmtInt },
+      { key: "cacheRead", label: "cache read", num: true, fmt: fmtInt },
+      { key: "cost", label: "cost", num: true, fmt: fmtCost },
+    ]);
+  });
 }
 
 function renderSummary() {
@@ -525,3 +529,184 @@ window.addEventListener("resize", () => {
 loadStats().catch((e) => {
   document.body.innerHTML = `<pre style="color:#f85149;padding:32px">load failed: ${e.message}</pre>`;
 });
+
+// Theme toggle: default <-> cyberpunk, persisted in localStorage.
+// 热力图 / 表格 / 卡片颜色都走 CSS 变量，切换时浏览器自动重绘，无需重渲染。
+(() => {
+  const KEY = "tokamak-theme";
+  const btn = document.getElementById("theme-toggle");
+  const apply = (t) => {
+    if (t === "cyberpunk") document.documentElement.setAttribute("data-theme", "cyberpunk");
+    else document.documentElement.removeAttribute("data-theme");
+    if (btn) btn.textContent = t === "cyberpunk" ? "default" : "cyberpunk";
+  };
+  apply(localStorage.getItem(KEY) || "default");
+  btn?.addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "cyberpunk" ? "default" : "cyberpunk";
+    localStorage.setItem(KEY, next);
+    apply(next);
+  });
+})();
+
+// Cyberpunk 随机故障引擎：每次故障持续 0.5~2s，间隔 2~5s。
+// 内存：故障结束/标签页隐藏时立即清空所有色块 DOM；CPU：后台暂停、限制满屏滤镜频率。
+(() => {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const active = () => document.documentElement.getAttribute("data-theme") === "cyberpunk";
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const neon = ["#05d9e8", "#ff2a6d", "#f9f871"];
+  let layer, timers = [], scheduleId = 0;
+
+  const getLayer = () => (layer ??= document.body.appendChild(
+    Object.assign(document.createElement("div"), { id: "glitch-layer" })));
+
+  const makeBlock = () => {
+    const el = document.createElement("div");
+    el.className = "glitch-block";
+    const big = Math.random() < 0.2;              // 20% 大色块，80% 小色块
+    const full = big && Math.random() < 0.4;      // 大色块里偶尔才是满屏横带
+    const w = full ? 100 : big ? rand(20, 50) : rand(2, 12);
+    const h = full ? rand(2, 8) : big ? rand(4, 12) : rand(0.4, 3);
+    el.style.cssText = `left:${full ? 0 : rand(0, 100 - w)}vw;top:${rand(0, 100 - h)}vh;width:${w}vw;height:${h}vh`;
+    el.style.setProperty("--c", neon[Math.floor(Math.random() * neon.length)]);
+    el.style.setProperty("--sx", rand(-30, 30) + "px");
+    if (Math.random() < 0.5) el.dataset.stripe = "1";
+    getLayer().appendChild(el);
+  };
+
+  const clearGlitch = () => {                     // 一次性释放：清空色块 + 撤掉滤镜
+    timers.forEach(clearTimeout);
+    timers = [];
+    layer?.replaceChildren();
+    document.body.classList.remove("glitch-rgb");
+  };
+
+  const episode = () => {
+    const end = performance.now() + rand(500, 2000);
+    if (Math.random() < 0.3) {                     // 满屏 RGB 抖动只在开头来一下，避免整页滤镜反复重绘
+      document.body.classList.add("glitch-rgb");
+      timers.push(setTimeout(() => document.body.classList.remove("glitch-rgb"), rand(150, 350)));
+    }
+    const tick = () => {
+      if (!active() || document.hidden || performance.now() >= end) { clearGlitch(); schedule(); return; }
+      layer?.replaceChildren();                    // 每波先清掉上一波，DOM 数量恒定不累积
+      makeBlock();                                 // 每波只出 1 个色块
+      timers.push(setTimeout(tick, rand(80, 160)));
+    };
+    tick();
+  };
+
+  const schedule = () => {
+    scheduleId = setTimeout(() => {
+      if (active() && !document.hidden) episode();
+      else schedule();
+    }, rand(2000, 5000));
+  };
+
+  document.addEventListener("visibilitychange", () => {   // 后台标签停摆，不空耗 CPU
+    clearTimeout(scheduleId);
+    clearGlitch();
+    if (!document.hidden) schedule();
+  });
+
+  schedule();
+})();
+
+// Cyberpunk 屏幕两侧断铜线：垂在左右空白区，受重力自然弯曲下垂，断口冒火星、电流发光带流动。
+// 每根存活 3~6s 后自动移除；后台标签暂停。
+(() => {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  const active = () => document.documentElement.getAttribute("data-theme") === "cyberpunk";
+  const rand = (a, b) => a + Math.random() * (b - a);
+  let layer, scheduleId = 0;
+  const getLayer = () => (layer ??= document.body.appendChild(
+    Object.assign(document.createElement("div"), { id: "wire-layer" })));
+
+  const poly = (pts) => "M" + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" L ");
+
+  // 生成一根悬垂的铜线点序列：从顶部锚点向下，受重力下垂，金属自身有缓弯，末端是断口
+  const hangPts = (ax, ay, len, gw, dir) => {
+    const a1 = rand(gw * 0.12, gw * 0.3);         // 主弯曲幅度
+    const a2 = rand(gw * 0.03, gw * 0.1);         // 次级抖动（金属不规则）
+    const f1 = rand(0.6, 1.1), ph = rand(0, Math.PI * 2);
+    const pts = [], N = 24;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const y = ay + len * t * (0.6 + 0.4 * t);   // 越往下越密 → 末端更垂直（重力）
+      let x = ax + dir * a1 * Math.sin(t * Math.PI * f1) + a2 * Math.sin(t * Math.PI * 3 + ph);
+      x = Math.max(3, Math.min(gw - 3, x));
+      pts.push([x, y]);
+    }
+    return pts;
+  };
+
+  const buildSideWire = (gw, vh) => {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const ax = rand(gw * 0.35, gw * 0.65);
+    const ay = rand(-30, 20);                      // 从屏幕顶部边缘外垂入
+    const len = rand(vh * 0.4, vh * 0.82);
+    const up = hangPts(ax, ay, len, gw, dir);
+    const tip = up[up.length - 1];
+    const bx = tip[0], by = tip[1];                // 断口
+    let frag = "";
+    if (Math.random() < 0.5) {                     // 偶尔下方还挂着断落的另一截
+      const fp = hangPts(bx + rand(-12, 12), by + rand(24, 50), rand(vh * 0.08, vh * 0.2), gw, dir * (Math.random() < 0.5 ? -1 : 1));
+      const fd = poly(fp);
+      frag = `<path class="cable-base" d="${fd}"/><path class="cable-mid" d="${fd}"/><path class="cable-hi" d="${fd}"/>`;
+    }
+    let sparks = "";
+    for (let i = 0; i < 4; i++) {                  // 断口放射状火星
+      const a = rand(-0.6, Math.PI + 0.6), r = rand(4, 11);
+      sparks += `<line class="spark" x1="${bx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${(bx + Math.cos(a) * r).toFixed(1)}" y2="${(by - Math.sin(a) * r).toFixed(1)}" style="animation-delay:${rand(0, 0.16).toFixed(2)}s"/>`;
+    }
+    for (let i = 0; i < 4; i++) {                  // 坠落火花
+      sparks += `<circle class="ember" cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="1.3" style="--dx:${rand(-8, 8).toFixed(1)}px;--ed:${rand(0.6, 1.1).toFixed(2)}s;animation-delay:${rand(0, 0.7).toFixed(2)}s"/>`;
+    }
+    const d = poly(up);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${gw} ${vh}`);
+    svg.setAttribute("class", "wire");
+    svg.style.setProperty("--s", Math.random() < 0.5 ? "#f9f871" : "#fff");
+    svg.style.setProperty("--life", rand(3, 6).toFixed(2) + "s");
+    const pulse = Math.random() < 0.7 ? `<path class="pulse" d="${d}"/>` : "";
+    svg.innerHTML = `<path class="cable-base" d="${d}"/><path class="cable-mid" d="${d}"/><path class="cable-hi" d="${d}"/>${frag}${pulse}${sparks}`;
+    return svg;
+  };
+
+  const spawn = () => {
+    const m = document.querySelector("main")?.getBoundingClientRect();
+    if (!m) return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const gutters = [];
+    if (m.left > 70) gutters.push([0, m.left]);            // 左侧空白
+    if (vw - m.right > 70) gutters.push([m.right, vw]);    // 右侧空白
+    if (!gutters.length) return;                            // 窄屏没有空白则不挂
+    const [g0, g1] = gutters[Math.floor(Math.random() * gutters.length)];
+    const gw = g1 - g0;
+    const svg = buildSideWire(gw, vh);
+    svg.style.left = g0 + "px";
+    svg.style.top = "0px";
+    svg.style.width = gw + "px";
+    svg.style.height = vh + "px";
+    getLayer().appendChild(svg);
+    setTimeout(() => svg.remove(), parseFloat(svg.style.getPropertyValue("--life")) * 1000 + 100);
+  };
+
+  const schedule = () => {
+    scheduleId = setTimeout(() => {
+      if (active() && !document.hidden) {
+        spawn();
+        if (Math.random() < 0.3) spawn();          // 偶尔同时两根
+      }
+      schedule();
+    }, rand(4000, 9000));
+  };
+
+  document.addEventListener("visibilitychange", () => {
+    clearTimeout(scheduleId);
+    layer?.replaceChildren();                       // 释放所有电线
+    if (!document.hidden) schedule();
+  });
+
+  schedule();
+})();

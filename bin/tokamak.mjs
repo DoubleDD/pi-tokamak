@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// pi-tokens CLI：启动本地 dashboard
+// tokamak CLI — 聚变级 token 热力图，赛博朋克美学
 import { startServer } from "../src/server.mjs";
 
 function parseArgs(argv) {
@@ -24,10 +24,10 @@ function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv);
   if (args.help) {
-    console.log(`pi-tokens — visualize your pi coding agent token usage
+    console.log(`tokamak — fusion-grade token heatmap for your pi coding agent
 
 Usage:
-  pi-tokens [options]
+  tokamak [options]
 
 Options:
   -p, --port <n>         server port (default: random)
@@ -45,7 +45,7 @@ Options:
 
   const { port } = await startServer({ port: args.port, sessionDir: args.sessionDir });
   const url = `http://127.0.0.1:${port}`;
-  console.log(`\n🥧  pi-tokens running at ${url}`);
+  console.log(`\n🔥  tokamak running at ${url}`);
   console.log("   Press Ctrl+C to stop.\n");
 
   if (args.open) {
@@ -60,6 +60,6 @@ Options:
 }
 
 main().catch((err) => {
-  console.error("pi-tokens failed:", err);
+  console.error("tokamak failed:", err);
   process.exit(1);
 });
