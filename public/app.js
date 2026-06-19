@@ -48,6 +48,7 @@ function render() {
   //    避免长同步任务把 footer 文本变更与重活打包成一帧延迟显示。
   requestAnimationFrame(() => {
     renderHeatmap();
+    renderTrend();
     renderUsageTable();
     renderDailyTable();
     renderTable("t-project", STATS.byProject, [
@@ -511,10 +512,189 @@ function attachTooltip(node, iso, agg) {
   }
 }
 
+// ============== Daily trend (smooth line/area chart) ==============
+const TREND_H = 240;
+
+// Catmull-Rom 样条 → 三次贝塞尔，得到平滑曲线
+function smoothPath(pts) {
+  if (!pts.length) return "";
+  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)} ${c2x.toFixed(2)} ${c2y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+  }
+  return d;
+}
+
+function renderTrend() {
+  const wrap = document.getElementById("trend");
+  wrap.innerHTML = "";
+
+  const days = STATS.byDay || {};
+  const summary = STATS.summary;
+  if (!summary.firstDate) {
+    wrap.textContent = "no data yet";
+    return;
+  }
+
+  // 从 firstDate 到今天构建连续日序列，缺失日补 0 → 曲线连续
+  const getter = METRIC_GETTERS[CURRENT_METRIC];
+  const fmtVal = CURRENT_METRIC === "cost" ? fmtCost : fmtCompact;
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const series = [];
+  for (let d = new Date(summary.firstDate + "T00:00:00Z"); d <= today; d = addDays(d, 1)) {
+    const iso = isoDate(d);
+    const agg = days[iso];
+    series.push({ iso, date: new Date(d), v: agg ? getter(agg) : 0, agg });
+  }
+
+  const wrapStyle = getComputedStyle(wrap);
+  const padX = parseFloat(wrapStyle.paddingLeft || "0") + parseFloat(wrapStyle.paddingRight || "0");
+  const W = Math.max(320, (wrap.clientWidth || 1100) - padX);
+  const H = TREND_H;
+  const M = { top: 16, right: 18, bottom: 28, left: 56 };
+  const plotW = W - M.left - M.right;
+  const plotH = H - M.top - M.bottom;
+
+  let maxVal = 0;
+  for (const s of series) if (s.v > maxVal) maxVal = s.v;
+  maxVal = maxVal || 1;
+
+  const xOf = (i) => M.left + (series.length === 1 ? plotW / 2 : (plotW * i) / (series.length - 1));
+  const yOf = (v) => M.top + plotH - (plotH * v) / maxVal;
+  const pts = series.map((s, i) => ({ x: xOf(i), y: yOf(s.v) }));
+
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", H);
+  svg.setAttribute("class", "trend-svg");
+
+  // 渐变填充（跟随主题 --accent）
+  const defs = document.createElementNS(SVG_NS, "defs");
+  const grad = document.createElementNS(SVG_NS, "linearGradient");
+  grad.setAttribute("id", "trend-grad");
+  grad.setAttribute("x1", "0"); grad.setAttribute("y1", "0");
+  grad.setAttribute("x2", "0"); grad.setAttribute("y2", "1");
+  for (const [off, op] of [["0", "0.35"], ["1", "0"]]) {
+    const stop = document.createElementNS(SVG_NS, "stop");
+    stop.setAttribute("offset", off);
+    stop.style.stopColor = "var(--accent)";
+    stop.style.stopOpacity = op;
+    grad.appendChild(stop);
+  }
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  // 水平网格 + Y 轴刻度
+  const ticks = 4;
+  for (let i = 0; i <= ticks; i++) {
+    const v = (maxVal * i) / ticks;
+    const y = yOf(v);
+    const ln = document.createElementNS(SVG_NS, "line");
+    ln.setAttribute("x1", M.left); ln.setAttribute("x2", M.left + plotW);
+    ln.setAttribute("y1", y); ln.setAttribute("y2", y);
+    ln.setAttribute("class", "trend-grid");
+    svg.appendChild(ln);
+    const t = document.createElementNS(SVG_NS, "text");
+    t.setAttribute("x", M.left - 8); t.setAttribute("y", y + 3);
+    t.setAttribute("text-anchor", "end");
+    t.setAttribute("class", "trend-axis");
+    t.textContent = fmtVal(v);
+    svg.appendChild(t);
+  }
+
+  // X 轴月份标签（每月第一个出现的日）
+  let lastMonth = -1;
+  series.forEach((s, i) => {
+    const m = s.date.getUTCMonth();
+    if (m === lastMonth) return;
+    lastMonth = m;
+    const t = document.createElementNS(SVG_NS, "text");
+    t.setAttribute("x", xOf(i)); t.setAttribute("y", H - 8);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("class", "trend-axis");
+    const monthStr = s.date.toLocaleString("en-US", { month: "short" });
+    t.textContent = m === 0 ? `${monthStr} '${String(s.date.getUTCFullYear()).slice(2)}` : monthStr;
+    svg.appendChild(t);
+  });
+
+  // 面积 + 平滑曲线
+  const lineD = smoothPath(pts);
+  const baseY = M.top + plotH;
+  const area = document.createElementNS(SVG_NS, "path");
+  area.setAttribute("d", `${lineD} L ${pts[pts.length - 1].x.toFixed(2)} ${baseY} L ${pts[0].x.toFixed(2)} ${baseY} Z`);
+  area.setAttribute("class", "trend-area");
+  area.setAttribute("fill", "url(#trend-grad)");
+  svg.appendChild(area);
+
+  const line = document.createElementNS(SVG_NS, "path");
+  line.setAttribute("d", lineD);
+  line.setAttribute("class", "trend-line");
+  svg.appendChild(line);
+
+  // 悬浮指示：竖线 + 圆点 + tooltip
+  const guide = document.createElementNS(SVG_NS, "line");
+  guide.setAttribute("class", "trend-guide");
+  guide.setAttribute("y1", M.top); guide.setAttribute("y2", baseY);
+  guide.style.display = "none";
+  svg.appendChild(guide);
+  const dot = document.createElementNS(SVG_NS, "circle");
+  dot.setAttribute("r", 4);
+  dot.setAttribute("class", "trend-dot");
+  dot.style.display = "none";
+  svg.appendChild(dot);
+
+  const overlay = document.createElementNS(SVG_NS, "rect");
+  overlay.setAttribute("x", M.left); overlay.setAttribute("y", M.top);
+  overlay.setAttribute("width", plotW); overlay.setAttribute("height", plotH);
+  overlay.setAttribute("fill", "transparent");
+  svg.appendChild(overlay);
+
+  let tip;
+  const showAt = (i, clientX, clientY) => {
+    const s = series[i];
+    guide.setAttribute("x1", pts[i].x); guide.setAttribute("x2", pts[i].x);
+    guide.style.display = ""; dot.style.display = "";
+    dot.setAttribute("cx", pts[i].x); dot.setAttribute("cy", pts[i].y);
+    if (!tip) { tip = document.createElement("div"); tip.className = "tooltip"; document.body.appendChild(tip); }
+    const a = s.agg;
+    tip.textContent = a
+      ? `${s.iso}\n${METRIC_LABELS[CURRENT_METRIC]}: ${fmtVal(s.v)}\nmessages: ${fmtInt(a.messages)}    cost: ${fmtCost(a.cost)}`
+      : `${s.iso}\nno activity`;
+    tip.style.left = clientX + 12 + "px";
+    tip.style.top = clientY + 12 + "px";
+  };
+  const clearHover = () => {
+    guide.style.display = "none"; dot.style.display = "none";
+    if (tip) { tip.remove(); tip = null; }
+  };
+  overlay.addEventListener("mousemove", (e) => {
+    const rect = svg.getBoundingClientRect();
+    const scale = W / rect.width;             // viewBox → 实际像素
+    const px = (e.clientX - rect.left) * scale;
+    let i = Math.round(((px - M.left) / plotW) * (series.length - 1));
+    i = Math.max(0, Math.min(series.length - 1, i));
+    showAt(i, e.clientX, e.clientY);
+  });
+  overlay.addEventListener("mouseleave", clearHover);
+
+  wrap.appendChild(svg);
+}
+
 // Bind
 document.getElementById("metric-select").addEventListener("change", (e) => {
   CURRENT_METRIC = e.target.value;
-  if (STATS) renderHeatmap();
+  if (STATS) { renderHeatmap(); renderTrend(); }
 });
 document.getElementById("refresh").addEventListener("click", () => {
   loadStats().catch((e) => alert(e.message));
@@ -523,7 +703,7 @@ document.getElementById("refresh").addEventListener("click", () => {
 let resizeTimer;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (STATS) renderHeatmap(); }, 100);
+  resizeTimer = setTimeout(() => { if (STATS) { renderHeatmap(); renderTrend(); } }, 100);
 });
 
 loadStats().catch((e) => {
