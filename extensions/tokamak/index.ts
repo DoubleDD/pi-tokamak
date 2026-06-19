@@ -9,6 +9,79 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { execSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
+import path from "node:path";
+import os from "node:os";
+
+// ─── release-notes helpers ────────────────────────────────────────
+
+interface ChangelogVersion {
+  version: string;
+  date: string;
+  sections: { title: string; items: string[] }[];
+}
+
+/** 定位 pi agent 的 CHANGELOG.md */
+function findChangelog(): string | null {
+  const candidates = [
+    path.join(os.homedir(), ".bun/install/global/node_modules/@earendil-works/pi-coding-agent/CHANGELOG.md"),
+    path.join(os.homedir(), ".npm-global/lib/node_modules/@earendil-works/pi-coding-agent/CHANGELOG.md"),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  try {
+    const root = execSync("npm root -g", { encoding: "utf8", stdio: ["pipe","pipe","ignore"] }).trim();
+    const p = path.join(root, "@earendil-works/pi-coding-agent/CHANGELOG.md");
+    if (fs.existsSync(p)) return p;
+  } catch {}
+  return null;
+}
+
+/** 解析 CHANGELOG.md 文本 */
+function parseChangelog(text: string): ChangelogVersion[] {
+  const versions: ChangelogVersion[] = [];
+  const lines = text.split("\n");
+  let cur: ChangelogVersion | null = null;
+  let sec: { title: string; items: string[] } | null = null;
+
+  for (const line of lines) {
+    const vm = line.match(/^##\s+\[([^\]]+)\]\s*-\s*(.+)$/);
+    if (vm) {
+      if (cur) versions.push(cur);
+      cur = { version: vm[1], date: vm[2].trim(), sections: [] };
+      sec = null;
+      continue;
+    }
+    if (!cur) continue;
+    const sm = line.match(/^###\s+(.+)$/);
+    if (sm) {
+      sec = { title: sm[1].trim(), items: [] };
+      cur.sections.push(sec);
+      continue;
+    }
+    if (sec && line.startsWith("- ")) {
+      sec.items.push(line.slice(2).trim());
+    }
+  }
+  if (cur) versions.push(cur);
+  return versions;
+}
+
+/** 格式化单个版本 */
+function formatReleaseNotes(ver: ChangelogVersion): string {
+  const lines: string[] = [];
+  lines.push(`pi agent v${ver.version}  (${ver.date})`);
+  lines.push("━".repeat(50));
+  for (const s of ver.sections) {
+    lines.push(`\n▸ ${s.title} (${s.items.length})`);
+    for (const item of s.items.slice(0, 8)) {
+      const clean = item.replace(/\s*\(\[#\d+\].*?\)\s*$/, "");
+      lines.push(`  • ${clean.length > 100 ? clean.slice(0, 100) + "…" : clean}`);
+    }
+    if (s.items.length > 8) lines.push(`  … 还有 ${s.items.length - 8} 项`);
+  }
+  return lines.join("\n");
+}
 
 const PORT_FILE = "/tmp/tokamak.port";
 
@@ -283,6 +356,60 @@ export default function tokamakExtension(pi: ExtensionAPI): void {
         return { content: [{ type: "text", text: "tokamak 已关停" }] };
       } catch (err) {
         return { content: [{ type: "text", text: `关停失败: ${err instanceof Error ? err.message : String(err)}` }] };
+      }
+    },
+  });
+
+  // Slash command: /release-notes — 查看 pi agent 更新内容
+  pi.registerCommand("release-notes", {
+    description: "查看 pi agent 最新版本更新内容",
+    handler: async (_args, ctx) => {
+      try {
+        const cl = findChangelog();
+        if (!cl) {
+          ctx.ui.notify("找不到 pi agent 的 CHANGELOG.md", "error");
+          return;
+        }
+        const text = fs.readFileSync(cl, "utf8");
+        const versions = parseChangelog(text);
+        if (versions.length === 0) {
+          ctx.ui.notify("无法解析 CHANGELOG", "error");
+          return;
+        }
+        ctx.ui.notify(formatReleaseNotes(versions[0]), "info");
+      } catch (err) {
+        ctx.ui.notify(`查询失败: ${err instanceof Error ? err.message : String(err)}`, "error");
+      }
+    },
+  });
+
+  // Tool: release_notes — Agent 可调用的更新内容查询
+  pi.registerTool({
+    name: "release_notes",
+    label: "Pi Release Notes",
+    description:
+      "查看 pi coding agent 的最新版本更新内容（New Features / Added / Fixed 等）。" +
+      "Use when asked about pi agent updates, changelog, what's new, or version history.",
+    parameters: Type.Object({}),
+    async execute(_toolCallId, _params, _signal, _onUpdate) {
+      try {
+        const cl = findChangelog();
+        if (!cl) {
+          return { content: [{ type: "text", text: "找不到 pi agent 的 CHANGELOG.md" }] };
+        }
+        const text = fs.readFileSync(cl, "utf8");
+        const versions = parseChangelog(text);
+        if (versions.length === 0) {
+          return { content: [{ type: "text", text: "无法解析 CHANGELOG" }] };
+        }
+        return {
+          content: [{ type: "text", text: formatReleaseNotes(versions[0]) }],
+          details: { version: versions[0].version, date: versions[0].date },
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `查询失败: ${err instanceof Error ? err.message : String(err)}` }],
+        };
       }
     },
   });

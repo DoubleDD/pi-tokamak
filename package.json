@@ -1,7 +1,7 @@
 {
   "name": "pi-tokamak",
-  "version": "0.1.0",
-  "description": "Fusion-grade token heatmaps for your pi coding agent — cyberpunk aesthetics included.",
+  "version": "0.1.1",
+  "description": "Token statistics, cost tracking, and usage analytics for pi coding agent. Beautiful heatmaps, dashboards, and cyberpunk visuals included.",
   "type": "module",
   "homepage": "https://github.com/DoubleDD/pi-tokamak",
   "repository": {
@@ -24,7 +24,8 @@
   "scripts": {
     "start": "node bin/tokamak.mjs",
     "test": "node --test 'test/**/*.test.mjs'",
-    "release": "./scripts/release.sh"
+    "release": "./scripts/release.sh",
+    "release-notes": "node scripts/release-notes.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -36,10 +37,22 @@
     "pi",
     "pi-coding-agent",
     "pi-package",
+    "token",
     "token-usage",
-    "heatmap",
+    "token-stats",
+    "token-analytics",
+    "cost",
+    "cost-tracking",
+    "analytics",
+    "usage",
+    "usage-tracking",
     "stats",
+    "heatmap",
     "dashboard",
+    "monitor",
+    "visualization",
+    "reporting",
+    "llm",
     "cyberpunk",
     "tokamak"
   ],
